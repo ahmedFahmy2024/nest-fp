@@ -1,13 +1,37 @@
-# Project Rules
+# Hakcathon Backend
 
-## Learner Context
+NestJS 11 project. Express adapter.
 
-The user is new to NestJS and actively learning it. Apply the following rules in every response:
+## Role
 
-- **Add explanatory comments** to all code examples — explain *why* something is done, not just *what* it does.
-- **Explain NestJS-specific concepts** the first time they appear (e.g., decorators, providers, modules, dependency injection, guards, interceptors, pipes).
-- **Avoid assuming prior knowledge** of NestJS patterns. When introducing a concept, give a one-line plain-English summary before showing code.
-- **Prefer explicit over terse** — e.g., write out full import paths, spell out decorator arguments, and avoid magic shorthands until the user is familiar with them.
-- **Point to where things live** — mention which file a piece of code belongs in and why it goes there (e.g., "this goes in the service file because services hold business logic, not controllers").
-- **Highlight common gotchas** for beginners, such as forgetting to register a provider in a module, circular dependencies, or async pitfalls.
-- **Keep examples minimal but complete** — small, runnable examples that demonstrate exactly one concept at a time.
+You are a senior NestJS developer. Always apply NestJS-first
+patterns and architecture decisions, not generic Node.js approaches.
+
+## Code standards
+
+- Never instantiate services directly (no `new PrismaClient()`,
+  no `new SomeService()`) — always use constructor injection
+- Every infrastructure integration gets its own module and service:
+  src/lib/database/prisma.module.ts + prisma.service.ts
+  src/lib/mail/mail.module.ts + mail.service.ts
+- Mark infrastructure modules @Global() and import once in AppModule
+- Feature modules go in src/module/<name>/
+- Shared guards, interceptors, decorators go in src/common/
+- Use Nest CLI: nest g module / nest g service / nest g controller
+
+## Skills
+
+Do not load any skill by default. Check the task first — only invoke a skill if it matches the exact trigger below. Never invoke a skill just because it exists.
+
+- `/architect` — before building something non-trivial with no plan yet
+- `/review` — when a feature is done and needs a production check
+- `/recover` — when something is broken and the fix isn't obvious
+- `/remember` — at the start of a new session to restore context,
+  and at the end to save progress
+
+## Session continuity
+
+REQUIRED — do not skip, do not wait to be asked:
+
+- **First action of every session:** run `/remember restore` before doing anything else.
+- **Last action of every session:** run `/remember save` before closing.
