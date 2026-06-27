@@ -19,6 +19,45 @@ patterns and architecture decisions, not generic Node.js approaches.
 - Shared guards, interceptors, decorators go in src/common/
 - Use Nest CLI: nest g module / nest g service / nest g controller
 
+## Source of truth
+
+opensrc is the source of truth for every library used in this project.
+Do not rely on training data or memory for any library API — always read the actual source.
+
+### Rule
+
+Before implementing any feature that depends on a library:
+
+1. Check if that library's source is already cached: `opensrc list`
+2. If not cached, fetch it before writing any code: `opensrc fetch <package>`
+3. Read the source to verify constructor signatures, method names, interfaces, and options
+
+```bash
+opensrc fetch <package>              # fetch on first use
+opensrc list                         # see what's already cached
+rg "<pattern>" $(opensrc path <package>)          # search source
+cat $(opensrc path <package>)/<path/to/file>      # read a file
+```
+
+### Libraries already cached
+
+| Library | Package(s) | Use case |
+|---|---|---|
+| NestJS | `@nestjs/common` `@nestjs/core` `@nestjs/platform-express` | Framework — all features |
+| Prisma | `prisma` `@prisma/client` | Database |
+
+### Upcoming libraries (fetch before starting the feature)
+
+| Library | Package(s) | Feature |
+|---|---|---|
+| better-auth | `better-auth` | Authentication |
+
+### Caveats
+
+- opensrc only covers TypeScript/JavaScript source. For schema grammar, config file rules,
+  or breaking changes enforced by compiled engines (e.g. Prisma's Rust engine), also check
+  Context7 docs alongside opensrc.
+
 ## Skills
 
 Do not load any skill by default. Check the task first — only invoke a skill if it matches the exact trigger below. Never invoke a skill just because it exists.
