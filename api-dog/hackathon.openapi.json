@@ -1,0 +1,543 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Hackathon API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/hackathon": {
+      "get": {
+        "tags": ["Hackathon"],
+        "summary": "Get all hackathons",
+        "description": "Returns all hackathons ordered by creation date descending. Requires a valid session.",
+        "operationId": "getAllHackathons",
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of hackathons",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/WrappedResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Hackathon" }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 200,
+                  "message": "Success",
+                  "data": [
+                    {
+                      "id": "clxyz123",
+                      "name": "Build-a-thon 2026",
+                      "description": "A 48-hour hackathon for builders.",
+                      "startDate": "2026-08-01T09:00:00.000Z",
+                      "endDate": "2026-08-03T09:00:00.000Z",
+                      "isActive": true,
+                      "authorId": "user_abc",
+                      "createdAt": "2026-06-28T00:00:00.000Z",
+                      "updatedAt": "2026-06-28T00:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Hackathon"],
+        "summary": "Create a hackathon",
+        "description": "Creates a new hackathon. The authenticated user's ID is automatically set as `authorId`. Requires ADMIN role.",
+        "operationId": "createHackathon",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateHackathonBody" },
+              "example": {
+                "name": "Build-a-thon 2026",
+                "description": "A 48-hour hackathon for builders.",
+                "startDate": "2026-08-01T09:00:00.000Z",
+                "endDate": "2026-08-03T09:00:00.000Z",
+                "isActive": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Hackathon created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/WrappedResponse" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Hackathon" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 201,
+                  "message": "Hackathon created successfully",
+                  "data": {
+                    "id": "clxyz123",
+                    "name": "Build-a-thon 2026",
+                    "description": "A 48-hour hackathon for builders.",
+                    "startDate": "2026-08-01T09:00:00.000Z",
+                    "endDate": "2026-08-03T09:00:00.000Z",
+                    "isActive": true,
+                    "authorId": "user_abc",
+                    "createdAt": "2026-06-28T00:00:00.000Z",
+                    "updatedAt": "2026-06-28T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/hackathon/{id}/join": {
+      "post": {
+        "tags": ["Hackathon"],
+        "summary": "Join a hackathon",
+        "description": "Registers the authenticated user as a participant. Hackathon must be active and not past its end date. Requires PARTICIPANT role.",
+        "operationId": "joinHackathon",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The hackathon's unique CUID"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Joined hackathon successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/WrappedResponse" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/HackathonParticipant" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 201,
+                  "message": "Joined hackathon successfully",
+                  "data": {
+                    "id": "clpart456",
+                    "hackathonId": "clxyz123",
+                    "userId": "user_abc",
+                    "joinedAt": "2026-06-28T12:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Already joined, hackathon is inactive, or end date has passed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "examples": {
+                  "alreadyJoined": {
+                    "summary": "Duplicate join attempt",
+                    "value": { "statusCode": 400, "message": "You have already joined this hackathon", "error": "Bad Request" }
+                  },
+                  "notActive": {
+                    "summary": "Hackathon inactive",
+                    "value": { "statusCode": 400, "message": "Hackathon is not active", "error": "Bad Request" }
+                  },
+                  "ended": {
+                    "summary": "Hackathon ended",
+                    "value": { "statusCode": 400, "message": "Hackathon has already ended", "error": "Bad Request" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/hackathon/{id}": {
+      "get": {
+        "tags": ["Hackathon"],
+        "summary": "Get hackathon by ID",
+        "description": "Returns a single hackathon by ID. Requires a valid session.",
+        "operationId": "getHackathonById",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The hackathon's unique CUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hackathon found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/WrappedResponse" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Hackathon" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 200,
+                  "message": "Success",
+                  "data": {
+                    "id": "clxyz123",
+                    "name": "Build-a-thon 2026",
+                    "description": "A 48-hour hackathon for builders.",
+                    "startDate": "2026-08-01T09:00:00.000Z",
+                    "endDate": "2026-08-03T09:00:00.000Z",
+                    "isActive": true,
+                    "authorId": "user_abc",
+                    "createdAt": "2026-06-28T00:00:00.000Z",
+                    "updatedAt": "2026-06-28T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Hackathon"],
+        "summary": "Update a hackathon",
+        "description": "Partially updates a hackathon by ID. All fields are optional. Requires ADMIN role.",
+        "operationId": "updateHackathon",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The hackathon's unique CUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateHackathonBody" },
+              "example": {
+                "name": "Build-a-thon 2026 (Updated)",
+                "isActive": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hackathon updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/WrappedResponse" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Hackathon" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 200,
+                  "message": "Hackathon updated successfully",
+                  "data": {
+                    "id": "clxyz123",
+                    "name": "Build-a-thon 2026 (Updated)",
+                    "description": "A 48-hour hackathon for builders.",
+                    "startDate": "2026-08-01T09:00:00.000Z",
+                    "endDate": "2026-08-03T09:00:00.000Z",
+                    "isActive": false,
+                    "authorId": "user_abc",
+                    "createdAt": "2026-06-28T00:00:00.000Z",
+                    "updatedAt": "2026-06-28T12:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Hackathon"],
+        "summary": "Delete a hackathon",
+        "description": "Deletes a hackathon by ID. Cascades to all participants. Requires ADMIN role.",
+        "operationId": "deleteHackathon",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The hackathon's unique CUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hackathon deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/WrappedResponse" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Hackathon" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 200,
+                  "message": "Hackathon deleted successfully",
+                  "data": {
+                    "id": "clxyz123",
+                    "name": "Build-a-thon 2026",
+                    "description": "A 48-hour hackathon for builders.",
+                    "startDate": "2026-08-01T09:00:00.000Z",
+                    "endDate": "2026-08-03T09:00:00.000Z",
+                    "isActive": true,
+                    "authorId": "user_abc",
+                    "createdAt": "2026-06-28T00:00:00.000Z",
+                    "updatedAt": "2026-06-28T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Hackathon": {
+        "type": "object",
+        "properties": {
+          "id":          { "type": "string" },
+          "name":        { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "startDate":   { "type": "string", "format": "date-time" },
+          "endDate":     { "type": "string", "format": "date-time" },
+          "isActive":    { "type": "boolean" },
+          "authorId":    { "type": "string" },
+          "createdAt":   { "type": "string", "format": "date-time" },
+          "updatedAt":   { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "name", "startDate", "endDate", "isActive", "authorId", "createdAt", "updatedAt"]
+      },
+      "HackathonParticipant": {
+        "type": "object",
+        "properties": {
+          "id":           { "type": "string" },
+          "hackathonId":  { "type": "string" },
+          "userId":       { "type": "string" },
+          "joinedAt":     { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "hackathonId", "userId", "joinedAt"]
+      },
+      "CreateHackathonBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "description": "Hackathon name (min 3 characters)"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000,
+            "description": "Optional description (10–1000 characters)"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Must be a future date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Must be a future date"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the hackathon is active (defaults to true)"
+          }
+        },
+        "required": ["name", "startDate", "endDate"]
+      },
+      "UpdateHackathonBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Must be a future date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Must be a future date"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WrappedResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer" },
+          "message":    { "type": "string" },
+          "data":       {}
+        },
+        "required": ["statusCode", "message", "data"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer" },
+          "message":    { "type": "string" },
+          "error":      { "type": "string" }
+        },
+        "required": ["statusCode", "message"]
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 400 },
+          "message": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "property": { "type": "string" },
+                "message":  { "type": "string" }
+              },
+              "required": ["property", "message"]
+            }
+          },
+          "error": { "type": "string", "example": "Bad Request" }
+        },
+        "required": ["statusCode", "message"]
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "No valid session — user is not authenticated",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "statusCode": 401, "message": "Unauthorized" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but lacks the required ADMIN role",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "statusCode": 403, "message": "Forbidden resource", "error": "Forbidden" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Hackathon with the given ID does not exist",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": {
+              "statusCode": 404,
+              "message": "Hackathon with id \"clxyz123\" not found",
+              "error": "Not Found"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Request body failed validation — returns an array of field errors",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+            "example": {
+              "statusCode": 400,
+              "message": [
+                { "property": "name", "message": "name must be longer than or equal to 3 characters" },
+                { "property": "startDate", "message": "startDate must be a future date" }
+              ],
+              "error": "Bad Request"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "Better Auth session cookie set after sign-in"
+      }
+    }
+  }
+}

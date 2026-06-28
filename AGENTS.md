@@ -25,8 +25,8 @@ patterns and architecture decisions, not generic Node.js approaches.
 
 ```
 src/
-├── main.ts                        # Bootstrap; bodyParser: false; global TransformInterceptor
-├── app.module.ts                  # Root module — imports PrismaModule, AuthModule, UserModule
+├── main.ts                        # Bootstrap; bodyParser: false; global TransformInterceptor + ValidationPipe
+├── app.module.ts                  # Root module — imports PrismaModule, AuthModule, UserModule, HackathonModule
 ├── app.controller.ts              # GET / — @AllowAnonymous() health check
 ├── app.service.ts                 # Returns "Hello World!"
 │
@@ -46,10 +46,17 @@ src/
 │       └── transform.interceptor.ts       # Wraps every response in { statusCode, message, data }
 │
 └── module/
-    └── user/
-        ├── user.module.ts         # Feature module — no @Global(); relies on PrismaModule being global
-        ├── user.service.ts        # findAll() + findById(id) — throws NotFoundException if not found
-        └── user.controller.ts     # GET /user/all (@Roles(['ADMIN'])), GET /user/:id (authenticated)
+    ├── user/
+    │   ├── user.module.ts         # Feature module — no @Global(); relies on PrismaModule being global
+    │   ├── user.service.ts        # findAll() + findById(id) — throws NotFoundException if not found
+    │   └── user.controller.ts     # GET /user/all (@Roles(['ADMIN'])), GET /user/:id (authenticated)
+    └── hackathon/
+        ├── hackathon.module.ts    # Feature module
+        ├── hackathon.service.ts   # findAll, findById, create(dto, authorId), update, remove, join(hackathonId, userId)
+        ├── hackathon.controller.ts# CRUD endpoints — read: any auth; write: @Roles(['ADMIN'])
+        └── dto/
+            ├── create-hackathon.dto.ts   # name(min3), description?(10-1000), startDate, endDate (future via @MinDate), isActive?
+            └── update-hackathon.dto.ts   # PartialType(CreateHackathonDto)
 ```
 
 ### Key wiring notes
@@ -65,6 +72,11 @@ src/
 - `TransformInterceptor` is registered globally via `app.useGlobalInterceptors()` in `main.ts`.
   It wraps every controller response in `{ statusCode, message, data }`. Use `@ResponseMessage('...')`
   on a handler or controller class to override the default `"Success"` message.
+- `ValidationPipe` is registered globally via `app.useGlobalPipes()` in `main.ts`.
+  `whitelist: true` strips unknown properties. `exceptionFactory` returns a `BadRequestException`
+  whose body is an array of `{ property, message }` objects.
+- `UserSession` from `@thallesp/nestjs-better-auth` must always be imported with the `type` modifier:
+  `import { Session, type UserSession }` — required by `isolatedModules` + `emitDecoratorMetadata`.
 
 ## Database schema (prisma/schema.prisma)
 
@@ -85,10 +97,17 @@ All responses are wrapped by `TransformInterceptor` in `{ statusCode, message, d
 | `lib/auth/auth.module.ts` | `ALL /api/auth/*` | Handled by Better Auth |
 | `module/user/user.controller.ts` | `GET /user/all` | Authenticated + `@Roles(['ADMIN'])` |
 | `module/user/user.controller.ts` | `GET /user/:id` | Authenticated (any role) |
+| `module/hackathon/hackathon.controller.ts` | `GET /hackathon` | Authenticated (any role) |
+| `module/hackathon/hackathon.controller.ts` | `GET /hackathon/:id` | Authenticated (any role) |
+| `module/hackathon/hackathon.controller.ts` | `POST /hackathon` | `@Roles(['ADMIN'])` — `authorId` from session |
+| `module/hackathon/hackathon.controller.ts` | `PATCH /hackathon/:id` | `@Roles(['ADMIN'])` |
+| `module/hackathon/hackathon.controller.ts` | `DELETE /hackathon/:id` | `@Roles(['ADMIN'])` |
+| `module/hackathon/hackathon.controller.ts` | `POST /hackathon/:id/join` | `@Roles(['PARTICIPANT'])` — userId from session |
 
 OpenAPI specs live in `api-dog/`. Current files:
 - `api-dog/auth.openapi.json`
 - `api-dog/user.openapi.json`
+- `api-dog/hackathon.openapi.json`
 
 ## Source of truth
 
@@ -116,6 +135,8 @@ cat $(opensrc path <package>)/<path/to/file>      # read a file
 |---|---|---|
 | NestJS | `@nestjs/common` `@nestjs/core` `@nestjs/platform-express` | Framework — all features |
 | Prisma | `prisma` `@prisma/client` | Database |
+| class-validator | `class-validator` `class-transformer` | DTO validation + transformation |
+| mapped-types | `@nestjs/mapped-types` | `PartialType` for update DTOs |
 
 ### Upcoming libraries (fetch before starting the feature)
 
