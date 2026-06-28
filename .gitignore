@@ -63,3 +63,5 @@ prisma.config.ts.js
 
 # TypeScript incremental compilation
 *.tsbuildinfo
+
+/nestjs-better-auth-master
