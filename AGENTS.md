@@ -58,6 +58,24 @@ cat $(opensrc path <package>)/<path/to/file>      # read a file
   or breaking changes enforced by compiled engines (e.g. Prisma's Rust engine), also check
   Context7 docs alongside opensrc.
 
+## API Documentation
+
+For every module created, generate a complete OpenAPI 3.1 spec and place it in the `api-dog/` directory at the project root.
+
+### Rules
+
+- File naming: `api-dog/<module-name>.openapi.json` (e.g. `api-dog/auth.openapi.json`)
+- Format: OpenAPI 3.1 JSON
+- Every endpoint in the module must be included with:
+  - Correct HTTP method and path
+  - Request body schema with required fields and examples
+  - All meaningful response schemas (200, 400, 401, 404, 422, etc.)
+  - Security scheme if the endpoint requires authentication
+- Reusable types go under `components/schemas`
+- Reusable responses go under `components/responses`
+- Security schemes go under `components/securitySchemes`
+- Import the generated file into Apidog via **Import → OpenAPI**
+
 ## Skills
 
 Do not load any skill by default. Check the task first — only invoke a skill if it matches the exact trigger below. Never invoke a skill just because it exists.
