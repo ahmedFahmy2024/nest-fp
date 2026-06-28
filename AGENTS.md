@@ -16,14 +16,16 @@ patterns and architecture decisions, not generic Node.js approaches.
   src/lib/mail/mail.module.ts + mail.service.ts
 - Mark infrastructure modules @Global() and import once in AppModule
 - Feature modules go in src/module/<name>/
-- Shared guards, interceptors, decorators go in src/common/
+- Shared guards, interceptors, decorators go in `src/common/`
+  - `src/common/decorators/` — e.g. `@ResponseMessage`
+  - `src/common/interceptors/` — e.g. `TransformInterceptor`
 - Use Nest CLI: nest g module / nest g service / nest g controller
 
 ## Project structure (current state)
 
 ```
 src/
-├── main.ts                        # Bootstrap; bodyParser: false (required by nestjs-better-auth)
+├── main.ts                        # Bootstrap; bodyParser: false; global TransformInterceptor
 ├── app.module.ts                  # Root module — imports PrismaModule, AuthModule, UserModule
 ├── app.controller.ts              # GET / — @AllowAnonymous() health check
 ├── app.service.ts                 # Returns "Hello World!"
@@ -36,6 +38,12 @@ src/
 │   └── auth/
 │       ├── auth.module.ts         # Wraps @thallesp/nestjs-better-auth BetterAuthModule.forRoot()
 │       └── auth.ts                # betterAuth() config — prismaAdapter, emailAndPassword, role field
+│
+├── common/
+│   ├── decorators/
+│   │   └── response-message.decorator.ts  # @ResponseMessage('...') — sets custom message metadata
+│   └── interceptors/
+│       └── transform.interceptor.ts       # Wraps every response in { statusCode, message, data }
 │
 └── module/
     └── user/
@@ -54,13 +62,22 @@ src/
   initialises outside the NestJS lifecycle. This is intentional and expected.
 - Every route is protected by a global `AuthGuard` from `BetterAuthModule`. Use `@AllowAnonymous()`
   from `@thallesp/nestjs-better-auth` to opt a route out.
+- `TransformInterceptor` is registered globally via `app.useGlobalInterceptors()` in `main.ts`.
+  It wraps every controller response in `{ statusCode, message, data }`. Use `@ResponseMessage('...')`
+  on a handler or controller class to override the default `"Success"` message.
 
 ## Database schema (prisma/schema.prisma)
 
 Models: `User`, `Session`, `Account`, `Verification` — all required by Better Auth.
 Custom additions: `Role` enum (`PARTICIPANT` | `ADMIN`), `role` field on `User` (default `PARTICIPANT`).
 
+Feature models:
+- `Hackathon` — `id` (cuid), `name`, optional `description`, `startDate`, `endDate`, `isActive` (default `true`), `createdAt`/`updatedAt`, `authorId` FK → `User` (cascade delete).
+- `HackathonParticipant` — `id` (cuid), `joinedAt`, `hackathonId` FK → `Hackathon` (cascade delete), `userId` FK → `User` (cascade delete). Unique constraint on `[hackathonId, userId]`.
+
 ## API surface
+
+All responses are wrapped by `TransformInterceptor` in `{ statusCode, message, data }`.
 
 | File | Endpoint | Auth |
 |---|---|---|

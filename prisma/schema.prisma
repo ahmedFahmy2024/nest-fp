@@ -14,17 +14,19 @@ enum Role {
 }
 
 model User {
-  id            String    @id
+  id            String   @id
   name          String
-  email         String    @unique
+  email         String   @unique
   emailVerified Boolean
   image         String?
   createdAt     DateTime
   updatedAt     DateTime
-  role          Role      @default(PARTICIPANT)
+  role          Role     @default(PARTICIPANT)
 
-  sessions Session[]
-  accounts Account[]
+  sessions                Session[]
+  accounts                Account[]
+  hackathons              Hackathon[]
+  hackathonParticipations HackathonParticipant[]
 
   @@map("user")
 }
@@ -72,4 +74,35 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model Hackathon {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId     String
+  author       User                   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  participants HackathonParticipant[]
+
+  @@map("hackathon")
+}
+
+model HackathonParticipant {
+  id       String   @id @default(cuid())
+  joinedAt DateTime @default(now())
+
+  hackathonId String
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hackathonId, userId])
+  @@map("hackathon_participant")
 }
