@@ -19,6 +19,60 @@ patterns and architecture decisions, not generic Node.js approaches.
 - Shared guards, interceptors, decorators go in src/common/
 - Use Nest CLI: nest g module / nest g service / nest g controller
 
+## Project structure (current state)
+
+```
+src/
+├── main.ts                        # Bootstrap; bodyParser: false (required by nestjs-better-auth)
+├── app.module.ts                  # Root module — imports PrismaModule, AuthModule, UserModule
+├── app.controller.ts              # GET / — @AllowAnonymous() health check
+├── app.service.ts                 # Returns "Hello World!"
+│
+├── prisma/
+│   ├── prisma.module.ts           # @Global() — exports PrismaService; imported once in AppModule
+│   └── prisma.service.ts          # Extends PrismaClient; uses PrismaPg driver adapter (Prisma 7+)
+│
+├── lib/
+│   └── auth/
+│       ├── auth.module.ts         # Wraps @thallesp/nestjs-better-auth BetterAuthModule.forRoot()
+│       └── auth.ts                # betterAuth() config — prismaAdapter, emailAndPassword, role field
+│
+└── module/
+    └── user/
+        ├── user.module.ts         # Feature module — no @Global(); relies on PrismaModule being global
+        ├── user.service.ts        # findAll() + findById(id) — throws NotFoundException if not found
+        └── user.controller.ts     # GET /user/all (@Roles(['ADMIN'])), GET /user/:id (authenticated)
+```
+
+### Key wiring notes
+
+- `bodyParser: false` in `NestFactory.create` — required; `@thallesp/nestjs-better-auth` manages body
+  parsing for `/api/auth/*` routes itself.
+- `PrismaService` uses `PrismaPg` driver adapter — Prisma 7 removed the built-in query engine and
+  requires an explicit driver adapter for every `PrismaClient` instantiation.
+- `auth.ts` creates its own standalone `PrismaClient` (not injected from DI) because Better Auth
+  initialises outside the NestJS lifecycle. This is intentional and expected.
+- Every route is protected by a global `AuthGuard` from `BetterAuthModule`. Use `@AllowAnonymous()`
+  from `@thallesp/nestjs-better-auth` to opt a route out.
+
+## Database schema (prisma/schema.prisma)
+
+Models: `User`, `Session`, `Account`, `Verification` — all required by Better Auth.
+Custom additions: `Role` enum (`PARTICIPANT` | `ADMIN`), `role` field on `User` (default `PARTICIPANT`).
+
+## API surface
+
+| File | Endpoint | Auth |
+|---|---|---|
+| `app.controller.ts` | `GET /` | Public (`@AllowAnonymous`) |
+| `lib/auth/auth.module.ts` | `ALL /api/auth/*` | Handled by Better Auth |
+| `module/user/user.controller.ts` | `GET /user/all` | Authenticated + `@Roles(['ADMIN'])` |
+| `module/user/user.controller.ts` | `GET /user/:id` | Authenticated (any role) |
+
+OpenAPI specs live in `api-dog/`. Current files:
+- `api-dog/auth.openapi.json`
+- `api-dog/user.openapi.json`
+
 ## Source of truth
 
 opensrc is the source of truth for every library used in this project.
